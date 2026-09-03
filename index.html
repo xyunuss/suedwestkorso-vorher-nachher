@@ -217,8 +217,10 @@ h1 .sub{
   overflow:hidden;
   background:var(--line-soft);
   touch-action:pan-y;
+  cursor:ew-resize;
   user-select:none;
   -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
 .frame img{
   display:block;
@@ -283,6 +285,9 @@ h1 .sub{
 }
 .grip svg{display:block}
 
+/* Nur noch fuer Tastatur und Screenreader &#8212; das Ziehen uebernimmt die
+   Zeigersteuerung auf .frame, weil ein natives Range-Feld auf iOS nur
+   greift, wenn die Geste exakt auf dem Knopf beginnt. */
 .rng{
   position:absolute;
   inset:0;
@@ -291,13 +296,11 @@ h1 .sub{
   margin:0;
   padding:0;
   opacity:0;
-  cursor:ew-resize;
+  pointer-events:none;
   -webkit-appearance:none;
   appearance:none;
   background:transparent;
 }
-.rng::-webkit-slider-thumb{-webkit-appearance:none;width:3rem;height:100%}
-.rng::-moz-range-thumb{width:3rem;height:100%;border:0;background:transparent}
 .rng:focus{outline:none}
 .rng:focus-visible ~ .handle .grip{
   box-shadow:0 0 0 3px var(--surface), 0 0 0 6px var(--accent);
@@ -737,9 +740,61 @@ footer{
   var frames = document.querySelectorAll(".frame");
   frames.forEach(function(frame){
     var rng = frame.querySelector(".rng");
-    var set = function(){ frame.style.setProperty("--p", rng.value); };
-    rng.addEventListener("input", set);
-    set();
+
+    var apply = function(p){
+      p = Math.max(0, Math.min(100, p));
+      rng.value = p;
+      frame.style.setProperty("--p", p);
+    };
+    var posOf = function(e){
+      var r = frame.getBoundingClientRect();
+      return r.width ? (e.clientX - r.left) / r.width * 100 : 50;
+    };
+
+    // Tastatur bleibt am Range-Feld.
+    rng.addEventListener("input", function(){
+      frame.style.setProperty("--p", rng.value);
+    });
+
+    var active = false, moved = false, touch = false, x0 = 0, y0 = 0;
+
+    frame.addEventListener("pointerdown", function(e){
+      if (e.button !== undefined && e.button !== 0) return;
+      active = true; moved = false;
+      touch = e.pointerType !== "mouse";
+      x0 = e.clientX; y0 = e.clientY;
+      // Mit der Maus sofort springen; bei Beruehrung erst entscheiden, ob
+      // gewischt (scrollen) oder gezogen (Regler) wird.
+      if (!touch) {
+        try { frame.setPointerCapture(e.pointerId); } catch (err) {}
+        apply(posOf(e));
+        e.preventDefault();
+      }
+    });
+
+    frame.addEventListener("pointermove", function(e){
+      if (!active) return;
+      if (!moved) {
+        var dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+        if (dx < 4 && dy < 4) return;
+        if (touch && dy > dx) { active = false; return; }  // vertikal: scrollen lassen
+        moved = true;
+        if (touch) { try { frame.setPointerCapture(e.pointerId); } catch (err) {} }
+      }
+      apply(posOf(e));
+      e.preventDefault();
+    });
+
+    var finish = function(e){
+      if (!active) return;
+      if (!moved) apply(posOf(e));   // kurzes Tippen springt an die Stelle
+      active = false;
+      try { frame.releasePointerCapture(e.pointerId); } catch (err) {}
+    };
+    frame.addEventListener("pointerup", finish);
+    frame.addEventListener("pointercancel", function(){ active = false; });
+
+    apply(parseFloat(rng.value));
   });
 
   // Einmalige Andeutung am ersten Bild, damit die Geste sofort verstanden wird.
