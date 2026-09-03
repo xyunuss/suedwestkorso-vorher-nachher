@@ -72,6 +72,7 @@
 *{box-sizing:border-box}
 body{
   margin:0;
+  overflow-x:hidden;   /* Sicherheitsnetz: kein seitliches Verrutschen der Seite */
   background:var(--ground);
   color:var(--ink);
   font-family:"Newsreader", Georgia, "Times New Roman", serif;
@@ -167,7 +168,8 @@ h1 .sub{
 .section-head{
   display:flex;
   align-items:baseline;
-  gap:1rem;
+  flex-wrap:wrap;
+  gap:.35rem 1rem;
   margin-bottom:1.75rem;
 }
 .section-head h2{
@@ -176,10 +178,11 @@ h1 .sub{
   font-weight:600;
   letter-spacing:-.015em;
   margin:0;
-  white-space:nowrap;
+  min-width:0;
 }
 .section-head .rule{
-  flex:1;
+  flex:1 1 1.5rem;
+  min-width:1.5rem;
   height:1px;
   background:var(--line);
 }
@@ -191,6 +194,7 @@ h1 .sub{
   color:var(--ink-3);
   font-variant-numeric:tabular-nums;
   white-space:nowrap;
+  margin-left:auto;   /* bleibt rechtsbuendig, auch nach einem Umbruch */
 }
 
 .grid{
